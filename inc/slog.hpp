@@ -98,22 +98,6 @@ inline std::unique_ptr<Sink> &DEFAULT_SINK()
     return sink;
 }
 
-class LogObjStr
-{
-  private:
-    Context ctx;
-    Sink &sink;
-    Severity sev;
-    std::string msg;
-
-  public:
-    LogObjStr(Context &&ctx, Sink &sink, Severity sev, const std::string &msg)
-        : ctx(ctx), sink(sink), sev(sev), msg(msg) {};
-    ~LogObjStr()
-    {
-        sink.record(sev, ctx, msg);
-    }
-};
 class LogObjStream
 {
   private:
@@ -143,24 +127,24 @@ inline LogObjStream log_impl(Context &&ctx, Sink &sink, Severity sev)
 {
     return LogObjStream(std::move(ctx), sink, sev);
 };
-inline LogObjStr log_impl(Context &&ctx, Severity sev, const std::string &msg)
+inline void log_impl(Context &&ctx, Severity sev, const std::string &msg)
 {
-    return LogObjStr{std::move(ctx), *DEFAULT_SINK(), sev, msg};
+    DEFAULT_SINK()->record(sev, ctx, msg);
 };
-inline LogObjStr log_impl(Context &&ctx, Sink &sink, Severity sev, const std::string &msg)
+inline void log_impl(Context &&ctx, Sink &sink, Severity sev, const std::string &msg)
 {
-    return LogObjStr{std::move(ctx), sink, sev, msg};
+    sink.record(sev, ctx, msg);
 };
 #ifdef SLOG_FMT
 template <typename... T>
-inline LogObjStr log_impl(Context &&ctx, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
+inline void log_impl(Context &&ctx, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
 {
-    return LogObjStr{std::move(ctx), *DEFAULT_SINK(), sev, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...)};
+    DEFAULT_SINK()->record(sev, ctx, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...));
 };
 template <typename... T>
-inline LogObjStr log_impl(Context &&ctx, Sink &sink, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
+inline void log_impl(Context &&ctx, Sink &sink, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
 {
-    return LogObjStr{std::move(ctx), sink, sev, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...)};
+    sink.record(sev, ctx, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...));
 };
 #endif
 } // namespace slog
