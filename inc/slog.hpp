@@ -20,8 +20,9 @@
 #define SLOG_FMT 2*(__cplusplus >= 202002L && __has_include(<format>))
 #endif
 #endif
-// uncomment below to strip all comments below WARN level
-//#define SLOG_STRIP_BELOW WARN
+#ifndef SLOG_STRIP_BELOW // all messages with severity < this option will be stripped out of release binaries
+#define SLOG_STRIP_BELOW DEBUG
+#endif
 
 #if SLOG_FMT == 1
 #define SLOG_FMT_NS fmt
@@ -31,8 +32,14 @@
 #include <format>
 #endif
 
+#include <chrono>
 #include <memory>
+#include <sstream>
 #include <string>
+#include <thread>
+#if SLOG_DEFAULT_FILE_SINK == 1
+#include <cstdio>
+#endif
 
 namespace slog
 {
@@ -44,6 +51,7 @@ enum class Severity
     WARN,
     ERROR
 };
+/** stringifys each severity, or returns "?" on error */
 inline const char *severity_to_str(Severity sev)
 {
     switch (sev)
@@ -60,44 +68,35 @@ inline const char *severity_to_str(Severity sev)
         return "?";
     }
 }
-struct Context;
-/** An interface for a log sink. Implement the record method */
-class Sink
-{
-  public:
-    virtual void record(Severity sev, const Context &ctx, const std::string &msg) = 0;
-};
-} // namespace slog
-#include <ctime>
-#include <sstream>
-#include <thread>
-
-namespace slog
-{
 /** Context of each log message */
 struct Context
 {
-  public:
-    std::time_t time;
-    std::thread::id thread_id;
+public:
     const char *file_name;
     unsigned int line;
     const char *func_name;
+    std::chrono::time_point<std::chrono::system_clock> time;
+    std::thread::id thread_id;
     Context(const char *file_name, unsigned int line, const char *func_name)
-        : thread_id(std::this_thread::get_id()), file_name(file_name), line(line), func_name(func_name)
+        : file_name(file_name), line(line), func_name(func_name), time(std::chrono::system_clock::now()), thread_id(std::this_thread::get_id())
     {
-        std::time(&time);
     }
 };
+/** An interface for a log sink. Implement the record method */
+class Sink
+{
+public:
+    virtual void record(Severity sev, const Context &ctx, const std::string &msg) = 0;
+};
+/** A temporary object that exposes a stringstream for logging */
 class LogObjStream
 {
-  private:
+private:
     const Context ctx;
     const Severity sev;
     Sink &sink;
     std::ostringstream msg;
-
-  public:
+public:
     LogObjStream(Context &&ctx, Severity sev, Sink &sink) : ctx(ctx), sev(sev), sink(sink) {};
     LogObjStream(LogObjStream &&) = default;
     template <typename T> LogObjStream &operator<<(const T &t)
@@ -105,27 +104,24 @@ class LogObjStream
         msg << t;
         return *this;
     }
-    ~LogObjStream()
-    {
-        sink.record(sev, ctx, msg.str());
-    }
+    ~LogObjStream() { sink.record(sev, ctx, msg.str()); }
 };
 
 #if SLOG_DEFAULT_FILE_SINK == 1
 /** An implementation of the sink that goes to a FILE* */
 class FileSink : public Sink
 {
-  private:
+private:
     std::FILE *file;
     bool close_dtor;
-
-  public:
+public:
     FileSink(std::FILE *file = stderr, bool close_dtor = false) : file(file), close_dtor(close_dtor) {};
     void record(Severity sev, const Context &ctx, const std::string &msg) override
     {
         char time_str[32];
-        tm time_buf;
-        std::strftime(time_str, sizeof(time_str), "%Y-%m-%dT%H:%M:%S", ::localtime_r(&ctx.time, &time_buf));
+        std::time_t time = std::chrono::system_clock::to_time_t(ctx.time);
+        std::tm time_buf;
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%dT%H:%M:%S", ::localtime_r(&time, &time_buf));
         fprintf(file, "%s\t%s\t%s\n", time_str, severity_to_str(sev), msg.c_str());
     }
     ~FileSink()
@@ -170,19 +166,14 @@ template <typename... T> inline void log_impl(Context &&ctx, Sink &sink, Severit
 };
 #endif
 } // namespace slog
+// clang-format off
 #if SLOG_HIDE_SRC == 1
-#define SLOG_CTX()                                                                                                                                   \
-    slog::Context                                                                                                                                    \
-    {                                                                                                                                                \
-        "?", 0, "?"                                                                                                                                  \
-    }
+#define SLOG_CTX() slog::Context{"?", 0, "?"}
 #else
-#define SLOG_CTX()                                                                                                                                   \
-    slog::Context                                                                                                                                    \
-    {                                                                                                                                                \
-        __FILE__, __LINE__, __PRETTY_FUNCTION__                                                                                                      \
-    }
+#define SLOG_CTX() slog::Context{__FILE__, __LINE__, __PRETTY_FUNCTION__}
 #endif
-#define SLOG(SEV, ...) slog::log_impl(SLOG_CTX(), slog::Severity::SEV, ##__VA_ARGS__)
-
+#define SLOG_IF(SEV, COND, ...) if(!COND || (slog::Severity::SEV < slog::Severity::SLOG_STRIP_BELOW)){;} else \
+    slog::log_impl(SLOG_CTX(), slog::Severity::SEV, ##__VA_ARGS__)
+#define SLOG(SEV, ...) SLOG_IF(SEV, true, ##__VA_ARGS__)
+// clang-format on
 #endif

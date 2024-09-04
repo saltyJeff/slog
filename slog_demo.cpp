@@ -10,4 +10,5 @@ int main()
     {
         SLOG(DEBUG, "this is a debug log: {:d}", i);
     }
+    SLOG_IF(ERROR, false) << "this doesn't exist";
 }
