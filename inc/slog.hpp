@@ -8,6 +8,7 @@
 #ifndef SLOG_HPP_
 #define SLOG_HPP_
 #include <cstdio>
+#define __STDC_WANT_LIB_EXT1__ 1
 #include <ctime>
 #include <memory>
 #include <sstream>
@@ -71,11 +72,10 @@ class Sink
   public:
     virtual void record(Severity sev, const Context &ctx, const std::string &msg) = 0;
 };
-/** An implementation of the sink that goes to a FILE* (not thread-safe because of std::localtime) */
+/** An implementation of the sink that goes to a FILE* */
 class FileSink : public Sink
 {
   private:
-    char time_str[100];
     std::FILE *file;
     bool close_dtor;
 
@@ -83,7 +83,9 @@ class FileSink : public Sink
     FileSink(std::FILE *file = stderr, bool close_dtor = false) : file(file), close_dtor(close_dtor) {};
     void record(Severity sev, const Context &ctx, const std::string &msg) override
     {
-        std::strftime(time_str, sizeof(time_str), "%Y-%m-%dT%H:%M:%S", std::localtime(&ctx.time));
+        char time_str[32];
+        tm time_buf;
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%dT%H:%M:%S", ::localtime_r(&ctx.time, &time_buf));
         fprintf(file, "%s\t%s\t%s\n", time_str, severity_to_str(sev), msg.c_str());
     }
     ~FileSink()
