@@ -44,7 +44,7 @@ slog::DEFAULT_SINK().reset(new FooSink());
 ```
 
 ## Features
-* small, currently < 200 lines including comments and docstrings
+* small, currently < 250 lines including comments, docstrings, and header options
 * support for C++11 onwards
 * supports [`fmtlib`](https://github.com/fmtlib/fmt/tree/master) with no configuration on C++17, or with the `SLOG_USE_FMTLIB` symbol defined
 * supports [`std::format`](https://en.cppreference.com/w/cpp/utility/format/format) with no configuration on C++20, or with the `SLOG_USE_STDFMT` symbol defined
