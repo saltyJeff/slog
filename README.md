@@ -37,7 +37,7 @@ public:
 FooSink sink;
 
 // use the above SLOG methods passing a reference to the instance
-SLOG(DEBUG, &sink) << "i'm going to foo logger";
+SLOG(DEBUG, sink) << "i'm going to foo logger";
 
 // to replace the default logger (so you don't have to pass &sink)
 slog::DEFAULT_SINK().reset(new FooSink());
