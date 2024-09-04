@@ -13,7 +13,9 @@
 #include <sstream>
 #include <string>
 
-#if SLOG_USE_FMTLIB || (__cplusplus >= 201703L && __has_include(<fmt/format.h>))
+#ifdef SLOG_NO_FMT
+// allow users to disable loading the format headers
+#elif SLOG_USE_FMTLIB || (__cplusplus >= 201703L && __has_include(<fmt/format.h>))
 #define SLOG_FMT 1
 #include <fmt/format.h>
 #define SLOG_FMT_NS fmt
@@ -69,7 +71,7 @@ class Sink
   public:
     virtual void record(Severity sev, const Context &ctx, const std::string &msg) = 0;
 };
-/** An implementation of the sink that goes to std::clog (not thread-safe because of std::localtime) */
+/** An implementation of the sink that goes to a FILE* (not thread-safe because of std::localtime) */
 class FileSink : public Sink
 {
   private:
@@ -86,7 +88,7 @@ class FileSink : public Sink
     }
     ~FileSink()
     {
-        if(close_dtor)
+        if (close_dtor)
         {
             fclose(file);
         }
@@ -101,13 +103,13 @@ inline std::unique_ptr<Sink> &DEFAULT_SINK()
 class LogObjStream
 {
   private:
-    Context ctx;
+    const Context ctx;
+    const Severity sev;
     Sink &sink;
-    Severity sev;
     std::ostringstream msg;
 
   public:
-    LogObjStream(Context &&ctx, Sink &sink, Severity sev) : ctx(ctx), sink(sink), sev(sev) {};
+    LogObjStream(Context &&ctx, Severity sev, Sink &sink) : ctx(ctx), sev(sev), sink(sink) {};
     LogObjStream(LogObjStream &&) = default;
     template <typename T> LogObjStream &operator<<(const T &t)
     {
@@ -119,19 +121,15 @@ class LogObjStream
         sink.record(sev, ctx, msg.str());
     }
 };
-inline LogObjStream log_impl(Context &&ctx, Severity sev)
+inline LogObjStream log_impl(Context &&ctx, Severity sev, Sink &sink = *DEFAULT_SINK())
 {
-    return LogObjStream(std::move(ctx), *DEFAULT_SINK(), sev);
-};
-inline LogObjStream log_impl(Context &&ctx, Sink &sink, Severity sev)
-{
-    return LogObjStream(std::move(ctx), sink, sev);
+    return LogObjStream(std::move(ctx), sev, sink);
 };
 inline void log_impl(Context &&ctx, Severity sev, const std::string &msg)
 {
     DEFAULT_SINK()->record(sev, ctx, msg);
 };
-inline void log_impl(Context &&ctx, Sink &sink, Severity sev, const std::string &msg)
+inline void log_impl(Context &&ctx, Severity sev, Sink &sink, const std::string &msg)
 {
     sink.record(sev, ctx, msg);
 };
