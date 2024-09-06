@@ -16,8 +16,10 @@ add_library(slog INTERFACE)
 target_include_directories(slog INTERFACE inc/)
 target_sources(slog INTERFACE ${CMAKE_SOURCE_DIR}/inc/slog.hpp)
 
-add_executable(slog_demo slog_demo.cpp)
-target_link_libraries(slog_demo slog fmt::fmt)
-target_compile_features(slog_demo PUBLIC cxx_std_17)
+add_executable(slog_demo_cpp11 slog_demo.cpp)
+target_link_libraries(slog_demo_cpp11 slog fmt::fmt)
+add_executable(slog_demo_cpp17 slog_demo.cpp)
+target_link_libraries(slog_demo_cpp17 slog fmt::fmt)
+target_compile_features(slog_demo_cpp17 PUBLIC cxx_std_17)
 
 
