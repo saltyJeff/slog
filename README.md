@@ -10,21 +10,26 @@ Single file header-only, include [`./inc/slog.hpp`](./inc/slog.hpp) in your proj
 ## Usage
 ### Logging with the provided console logger
 ```c++
-// style 1: iostream-style logging
-SLOG(DEBUG) << "foo bar";
+#include <slog.hpp>
 
-// style 2: include the string as part of the method call
-SLOG(DEBUG, "foo bar");
-
-// style 3: use formatting (if fmtlib or std::format are available)
-SLOG(DEBUG, "foo {}", "bar"); // bar will be substituted into {}
+int main()
+{
+    // style 1: iostream-style logging
+    SLOG(DEBUG) << "foo bar";
+    
+    // style 2: include the string as part of the method call
+    SLOG(DEBUG, "foo bar");
+    
+    // style 3: use formatting (if fmtlib or std::format are available)
+    SLOG(DEBUG, "foo {}", "bar"); // bar will be substituted into {}
+}
 ```
 See [slog_demo.cpp](./slog_demo.cpp) for a demo
 
 ### Logging with a custom log sink
 ```c++
 // first, implement the record() method of the slog::Sink interface
-class FooSink: public Sink
+class FooSink: public slog::Sink
 {
 public:
     void record(Severity sev, const Context &ctx, const std::string &msg) override
@@ -38,9 +43,6 @@ FooSink sink;
 
 // use the above SLOG methods passing a reference to the instance
 SLOG(DEBUG, sink) << "i'm going to foo logger";
-
-// to replace the default logger (so you don't have to pass &sink)
-slog::DEFAULT_SINK().reset(new FooSink());
 ```
 
 ## Features
