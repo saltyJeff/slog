@@ -70,16 +70,11 @@ inline const char *severity_to_str(Severity sev)
 {
     switch (sev)
     {
-    case Severity::DEBUG:
-        return "DEBUG";
-    case Severity::INFO:
-        return "INFO";
-    case Severity::WARN:
-        return "WARN";
-    case Severity::ERROR:
-        return "ERROR";
-    default:
-        return "?";
+    case Severity::DEBUG: return "DEBUG";
+    case Severity::INFO: return "INFO";
+    case Severity::WARN: return "WARN";
+    case Severity::ERROR: return "ERROR";
+    default: return "?";
     }
 }
 /** Context of each log message */
