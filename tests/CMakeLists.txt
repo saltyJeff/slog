@@ -1,4 +1,3 @@
-enable_testing()
 include(CTest)
 include(doctest.cmake)
 
@@ -9,4 +8,5 @@ target_link_libraries(mock_slog INTERFACE slog)
 
 add_executable(test_cpp11 test_cpp11.cpp)
 target_link_libraries(test_cpp11 mock_slog)
-target_compile_features(test_cpp11 PUBLIC cxx_std_17)
+target_compile_features(test_cpp11 PUBLIC cxx_std_11)
+doctest_discover_tests(test_cpp11)

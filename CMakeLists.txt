@@ -11,6 +11,7 @@ target_sources(slog INTERFACE ${CMAKE_SOURCE_DIR}/inc/slog.hpp)
 
 option(BUILD_SLOG_TESTS "Build test programs" ON)
 if(BUILD_SLOG_TESTS)
+enable_testing()
 include(FetchContent)
 FetchContent_Declare(
   fmt

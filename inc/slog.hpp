@@ -10,9 +10,17 @@
 /*
  * header options. You can edit this file directly, or add the appropriate preprocessor defines
  */
-/** sets whether the FileSink will be defined and made the default (default 1)*/
-#ifndef SLOG_DEFAULT_FILE_SINK
-#define SLOG_DEFAULT_FILE_SINK 1
+/** sets whether the FileSink will be defined*/
+#ifndef SLOG_FILE_SINK
+#define SLOG_FILE_SINK 1
+#endif
+/** sets whether if FileSink will be made the default */
+#if SLOG_FILE_SINK == 1
+#ifndef SLOG_FILE_SINK_DEFAULT
+#define SLOG_FILE_SINK_DEFAULT 1
+#endif
+#else
+#define SLOG_FILE_SINK_DEFAULT 0
 #endif
 /** sets whether fmt-lib style logging is supported (0 for disabled, 1 for fmtlib, 2 for stdfmt) */
 #ifndef SLOG_FMT
@@ -136,7 +144,7 @@ public:
     ~LogObjStream() { sink.record(sev, ctx, msg.str()); }
 };
 
-#if SLOG_DEFAULT_FILE_SINK == 1
+#if SLOG_FILE_SINK == 1
 /** An implementation of the sink that goes to a FILE* */
 class FileSink : public Sink
 {
@@ -161,6 +169,8 @@ public:
         }
     }
 };
+#endif
+#if SLOG_FILE_SINK_DEFAULT == 1
 inline Sink &DEFAULT_SINK()
 {
     static FileSink sink;
