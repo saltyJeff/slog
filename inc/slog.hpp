@@ -34,7 +34,6 @@
 #endif
 
 #include <chrono>
-#include <memory>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -133,23 +132,23 @@ public:
         }
     }
 };
-inline std::shared_ptr<Sink> &DEFAULT_SINK()
+inline Sink& DEFAULT_SINK()
 {
-    static std::shared_ptr<Sink> sink{new FileSink()};
+    static FileSink sink;
     return sink;
 }
 #else
-extern std::shared_ptr<Sink> &DEFAULT_SINK();
+extern Sink& DEFAULT_SINK();
 #endif
 
-inline LogObjStream log_impl(Context &&ctx, Severity sev, Sink &sink = *DEFAULT_SINK())
+inline LogObjStream log_impl(Context &&ctx, Severity sev, Sink &sink = DEFAULT_SINK())
 {
     return LogObjStream(std::move(ctx), sev, sink);
 };
 
 inline void log_impl(Context &&ctx, Severity sev, const std::string &msg)
 {
-    DEFAULT_SINK()->record(sev, ctx, msg);
+    DEFAULT_SINK().record(sev, ctx, msg);
 };
 inline void log_impl(Context &&ctx, Severity sev, Sink &sink, const std::string &msg)
 {
@@ -159,7 +158,7 @@ inline void log_impl(Context &&ctx, Severity sev, Sink &sink, const std::string 
 #if SLOG_FMT == 1 || SLOG_FMT == 2
 template <typename... T> inline void log_impl(Context &&ctx, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
 {
-    DEFAULT_SINK()->record(sev, ctx, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...));
+    DEFAULT_SINK().record(sev, ctx, SLOG_FMT_NS::format(fmt, std::forward<T>(args)...));
 };
 template <typename... T> inline void log_impl(Context &&ctx, Sink &sink, Severity sev, SLOG_FMT_NS::format_string<T...> fmt, T &&...args)
 {
