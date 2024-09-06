@@ -17,6 +17,7 @@
 #ifndef SLOG_FMT // sets whether fmt-lib style logging is supported (0 for disabled, 1 for fmtlib, 2 for stdfmt)
 #define SLOG_FMT 1*(__cplusplus >= 201703L && __has_include(<fmt/format.h>))
 #if SLOG_FMT == 0
+#undef SLOG_FMT
 #define SLOG_FMT 2*(__cplusplus >= 202002L && __has_include(<format>))
 #endif
 #endif
