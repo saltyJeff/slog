@@ -7,24 +7,40 @@
 #pragma once
 #ifndef SLOG_HPP_
 #define SLOG_HPP_
-// header options. You can edit this file directly, or add the appropriate preprocessor defines
-#ifndef SLOG_HIDE_SRC // sets whether the source code info will be hidden with dummy values
-#define SLOG_HIDE_SRC 0
-#endif
-#ifndef SLOG_DEFAULT_FILE_SINK // sets whether the FileSink will be defined and made the default
+/*
+ * header options. You can edit this file directly, or add the appropriate preprocessor defines
+ */
+/** sets whether the FileSink will be defined and made the default (default 1)*/
+#ifndef SLOG_DEFAULT_FILE_SINK
 #define SLOG_DEFAULT_FILE_SINK 1
 #endif
-#ifndef SLOG_FMT // sets whether fmt-lib style logging is supported (0 for disabled, 1 for fmtlib, 2 for stdfmt)
+/** sets whether fmt-lib style logging is supported (0 for disabled, 1 for fmtlib, 2 for stdfmt) */
+#ifndef SLOG_FMT
 #define SLOG_FMT 1*(__cplusplus >= 201703L && __has_include(<fmt/format.h>))
 #if SLOG_FMT == 0
 #undef SLOG_FMT
 #define SLOG_FMT 2*(__cplusplus >= 202002L && __has_include(<format>))
 #endif
 #endif
-#ifndef SLOG_STRIP_BELOW // all messages with severity < this option will be stripped out of release binaries
+/** all messages with severity < this option will be stripped out of release binaries */
+#ifndef SLOG_STRIP_BELOW
 #define SLOG_STRIP_BELOW DEBUG
 #endif
+#define SLOG_CTX_SRC (1 << 0)
+#define SLOG_CTX_TIME (1 << 1)
+#define SLOG_CTX_THREAD (1 << 2)
+#ifndef SLOG_CTX_MASK
+/** combine the appropriate SLOG_CTX_* to define what will be included in the slog::Context struct */
+#define SLOG_CTX_MASK (SLOG_CTX_SRC | SLOG_CTX_TIME | SLOG_CTX_THREAD)
+#endif
 
+/* end options, begin actual code*/
+#include <sstream>
+#include <string>
+
+#if SLOG_DEFAULT_FILE_SINK == 1
+#include <cstdio>
+#endif
 #if SLOG_FMT == 1
 #define SLOG_FMT_NS fmt
 #include <fmt/format.h>
@@ -32,13 +48,11 @@
 #define SLOG_FMT_NS std
 #include <format>
 #endif
-
+#if (SLOG_CTX_MASK & SLOG_CTX_TIME) != 0
 #include <chrono>
-#include <sstream>
-#include <string>
+#endif
+#if (SLOG_CTX_MASK & SLOG_CTX_THREAD) != 0
 #include <thread>
-#if SLOG_DEFAULT_FILE_SINK == 1
-#include <cstdio>
 #endif
 
 namespace slog
@@ -72,16 +86,36 @@ inline const char *severity_to_str(Severity sev)
 struct Context
 {
 public:
+#if (SLOG_CTX_MASK & SLOG_CTX_SRC) != 0
     const char *file_name;
     unsigned int line;
     const char *func_name;
+#endif
+#if (SLOG_CTX_MASK & SLOG_CTX_TIME) != 0
     std::chrono::time_point<std::chrono::system_clock> time;
+#endif
+#if (SLOG_CTX_MASK & SLOG_CTX_THREAD) != 0
     std::thread::id thread_id;
-    Context(const char *file_name, unsigned int line, const char *func_name)
-        : file_name(file_name), line(line), func_name(func_name), time(std::chrono::system_clock::now()), thread_id(std::this_thread::get_id())
-    {
-    }
+#endif
 };
+
+inline Context make_ctx(const char *file_name, unsigned int line, const char *func_name)
+{
+    Context ctx;
+#if (SLOG_CTX_MASK & SLOG_CTX_SRC) != 0
+    ctx.file_name = file_name;
+    ctx.line = line;
+    ctx.func_name = func_name;
+#endif
+#if (SLOG_CTX_MASK & SLOG_CTX_TIME) != 0
+    ctx.time = std::chrono::system_clock::now();
+#endif
+#if (SLOG_CTX_MASK & SLOG_CTX_THREAD) != 0
+    ctx.thread_id = std::this_thread::get_id();
+#endif
+    return ctx;
+}
+
 /** An interface for a log sink. Implement the record method */
 class Sink
 {
@@ -132,13 +166,13 @@ public:
         }
     }
 };
-inline Sink& DEFAULT_SINK()
+inline Sink &DEFAULT_SINK()
 {
     static FileSink sink;
     return sink;
 }
 #else
-extern Sink& DEFAULT_SINK();
+extern Sink &DEFAULT_SINK();
 #endif
 
 inline LogObjStream log_impl(Context &&ctx, Severity sev, Sink &sink = DEFAULT_SINK())
@@ -167,13 +201,8 @@ template <typename... T> inline void log_impl(Context &&ctx, Sink &sink, Severit
 #endif
 } // namespace slog
 // clang-format off
-#if SLOG_HIDE_SRC == 1
-#define SLOG_CTX() slog::Context{"?", 0, "?"}
-#else
-#define SLOG_CTX() slog::Context{__FILE__, __LINE__, __PRETTY_FUNCTION__}
-#endif
 #define SLOG_IF(SEV, COND, ...) if(!COND || (slog::Severity::SEV < slog::Severity::SLOG_STRIP_BELOW)){;} else \
-    slog::log_impl(SLOG_CTX(), slog::Severity::SEV, ##__VA_ARGS__)
+    slog::log_impl(slog::make_ctx(__FILE__, __LINE__, __FUNCTION__), slog::Severity::SEV, ##__VA_ARGS__)
 #define SLOG(SEV, ...) SLOG_IF(SEV, true, ##__VA_ARGS__)
 // clang-format on
 #endif
